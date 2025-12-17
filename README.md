@@ -1,4 +1,8 @@
 <p align="center">
+  <img src="public/kapture-og.png" alt="Kapture" width="600" />
+</p>
+
+<p align="center">
   <img src="public/kapture.svg" alt="Kapture" width="48" />
 </p>
 

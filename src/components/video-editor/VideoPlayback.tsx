@@ -250,6 +250,10 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(({
   if (mockupType === "browser") {
     // padding 0-100 maps to scale 1.0-0.7 (more padding = smaller mockup)
     const mockupScale = 1 - (padding / 100) * 0.3;
+    // Get video aspect ratio to size the mockup properly
+    const videoAspect = lockedVideoDimensionsRef.current 
+      ? lockedVideoDimensionsRef.current.width / lockedVideoDimensionsRef.current.height 
+      : 16 / 9;
     return (
       <div className="relative rounded-sm overflow-hidden w-full h-full">
         <div className="absolute inset-0 bg-cover bg-center" style={{ ...bgStyle, filter: showBlur ? 'blur(2px)' : 'none' }} />
@@ -261,8 +265,14 @@ const VideoPlayback = forwardRef<VideoPlaybackRef, VideoPlaybackProps>(({
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <div 
             ref={mockupFrameRef}
-            className="flex flex-col overflow-hidden border border-black/20 bg-[#1a1a1a] transition-[width,height] duration-150 ease-out" 
-            style={{ width: `${mockupScale * 100}%`, height: `${mockupScale * 100}%`, borderRadius: borderRadius + 4, filter: shadowFilter }}
+            className="flex flex-col overflow-hidden border border-black/20 bg-[#1a1a1a] transition-all duration-150 ease-out" 
+            style={{ 
+              width: `${mockupScale * 100}%`,
+              maxHeight: `${mockupScale * 100}%`,
+              aspectRatio: `${videoAspect}`,
+              borderRadius: borderRadius + 4, 
+              filter: shadowFilter 
+            }}
           >
             {/* Browser Title Bar */}
             <div className="h-9 bg-[#363636] flex items-center px-3 gap-2 flex-shrink-0 border-b border-white/5">

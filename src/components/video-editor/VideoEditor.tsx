@@ -28,6 +28,14 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset,
   const videoPlaybackRef = useRef<VideoPlaybackRef>(null);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [browserUrl, setBrowserUrl] = useState("kapture.app");
+  const [activeKey, setActiveKey] = useState<{ key: string; label: string } | null>(null);
+  const keyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showKeyIndicator = (key: string, label: string) => {
+    if (keyTimeoutRef.current) clearTimeout(keyTimeoutRef.current);
+    setActiveKey({ key, label });
+    keyTimeoutRef.current = setTimeout(() => setActiveKey(null), 800);
+  };
 
   // Use state hook
   const state = useVideoEditorState(propVideoUrl);
@@ -52,6 +60,7 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset,
     videoPath, wallpaper, zoomRegions, trimRegions, annotationRegions,
     shadowIntensity, showBlur, motionBlurEnabled, borderRadius, padding, cropRegion,
     aspectRatio, exportQuality, isPlaying, videoRef: videoPlaybackRef,
+    mockupType, browserUrl,
   });
 
   // Initialize
@@ -96,31 +105,39 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset,
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         const playback = videoPlaybackRef.current;
-        if (playback?.video) { playback.video.paused ? playback.play().catch(console.error) : playback.pause(); }
+        if (playback?.video) {
+          const wasPlaying = !playback.video.paused;
+          playback.video.paused ? playback.play().catch(console.error) : playback.pause();
+          showKeyIndicator('Space', wasPlaying ? 'Pause' : 'Play');
+        }
       }
 
       // Z - Add Zoom
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
         handlers.handleZoomAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+        showKeyIndicator('Z', 'Zoom');
       }
 
       // A - Add Annotation
       if (e.key === 'a' || e.key === 'A') {
         e.preventDefault();
         handlers.handleAnnotationAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+        showKeyIndicator('A', 'Annotation');
       }
 
       // S - Add Speed
       if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
         handlers.handleSpeedAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+        showKeyIndicator('S', 'Speed');
       }
 
       // \ - Add Trim
       if (e.key === '\\') {
         e.preventDefault();
         handlers.handleTrimAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+        showKeyIndicator('\\', 'Trim');
       }
 
       // Escape - Deselect all
@@ -130,26 +147,28 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset,
         setSelectedTrimId(null);
         setSelectedSpeedId(null);
         setSelectedAnnotationId(null);
+        showKeyIndicator('Esc', 'Deselect');
       }
 
       // Delete/Backspace - Delete selected region
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        if (selectedZoomId) handlers.handleZoomDelete(selectedZoomId);
-        else if (selectedTrimId) handlers.handleTrimDelete(selectedTrimId);
-        else if (selectedSpeedId) handlers.handleSpeedDelete(selectedSpeedId);
-        else if (selectedAnnotationId) handlers.handleAnnotationDelete(selectedAnnotationId);
+        if (selectedZoomId) { handlers.handleZoomDelete(selectedZoomId); showKeyIndicator('Del', 'Delete'); }
+        else if (selectedTrimId) { handlers.handleTrimDelete(selectedTrimId); showKeyIndicator('Del', 'Delete'); }
+        else if (selectedSpeedId) { handlers.handleSpeedDelete(selectedSpeedId); showKeyIndicator('Del', 'Delete'); }
+        else if (selectedAnnotationId) { handlers.handleAnnotationDelete(selectedAnnotationId); showKeyIndicator('Del', 'Delete'); }
       }
 
       // Arrow keys - Seek
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         const video = videoPlaybackRef.current?.video;
-        if (video) video.currentTime = Math.max(0, video.currentTime - (e.shiftKey ? 5 : 1));
+        if (video) { video.currentTime = Math.max(0, video.currentTime - (e.shiftKey ? 5 : 1)); showKeyIndicator('←', e.shiftKey ? '-5s' : '-1s'); }
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         const video = videoPlaybackRef.current?.video;
+        if (video) { video.currentTime = Math.min(duration, video.currentTime + (e.shiftKey ? 5 : 1)); showKeyIndicator('→', e.shiftKey ? '+5s' : '+1s'); }
         if (video) video.currentTime = Math.min(duration, video.currentTime + (e.shiftKey ? 5 : 1));
       }
     };
@@ -178,6 +197,16 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset,
         ]}
         noiseIntensity={1.2}
       />
+      
+      {/* Key indicator */}
+      {activeKey && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-1 duration-100">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-sm">
+            <span className="px-1.5 py-0.5 rounded bg-white/20 text-white/90 font-mono text-[10px] leading-none">{activeKey.key}</span>
+            <span className="text-white/50 text-[10px]">{activeKey.label}</span>
+          </div>
+        </div>
+      )}
       <div className="h-11 flex-shrink-0 bg-[#111] border-b border-white/5 flex items-center justify-between px-5 z-50">
         <div className="flex items-center gap-4 flex-1">
           {onReset ? (

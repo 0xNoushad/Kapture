@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { VideoExporter, type ExportProgress, type ExportQuality } from "@/lib/exporter";
 import { getAspectRatioValue, type AspectRatio } from "@/utils/aspectRatioUtils";
 import type { ZoomRegion, TrimRegion, AnnotationRegion, CropRegion } from "../types";
+import type { MockupType } from "@/App";
 
 interface UseExportProps {
   videoPath: string | null;
@@ -20,12 +21,14 @@ interface UseExportProps {
   exportQuality: ExportQuality;
   isPlaying: boolean;
   videoRef: React.RefObject<{ video: HTMLVideoElement | null; containerRef?: React.RefObject<HTMLDivElement>; pause: () => void; play: () => Promise<void> } | null>;
+  mockupType?: MockupType;
+  browserUrl?: string;
 }
 
 export function useExport({
   videoPath, wallpaper, zoomRegions, trimRegions, annotationRegions,
   shadowIntensity, showBlur, motionBlurEnabled, borderRadius, padding, cropRegion,
-  aspectRatio, exportQuality, isPlaying, videoRef,
+  aspectRatio, exportQuality, isPlaying, videoRef, mockupType, browserUrl,
 }: UseExportProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
@@ -100,6 +103,7 @@ export function useExport({
         videoUrl: videoPath, width: exportWidth, height: exportHeight, frameRate: 60, bitrate, codec: 'avc1.640033',
         wallpaper, zoomRegions, trimRegions, showShadow: shadowIntensity > 0, shadowIntensity, showBlur, motionBlurEnabled,
         borderRadius, padding, cropRegion, annotationRegions, previewWidth, previewHeight,
+        mockupType, browserUrl,
         onProgress: (progress: ExportProgress) => setExportProgress(progress),
       });
 
@@ -127,7 +131,7 @@ export function useExport({
       setIsExporting(false);
       exporterRef.current = null;
     }
-  }, [videoPath, wallpaper, zoomRegions, trimRegions, shadowIntensity, showBlur, motionBlurEnabled, borderRadius, padding, cropRegion, annotationRegions, isPlaying, aspectRatio, exportQuality, videoRef]);
+  }, [videoPath, wallpaper, zoomRegions, trimRegions, shadowIntensity, showBlur, motionBlurEnabled, borderRadius, padding, cropRegion, annotationRegions, isPlaying, aspectRatio, exportQuality, videoRef, mockupType, browserUrl]);
 
   const handleCancelExport = useCallback(() => {
     if (exporterRef.current) {

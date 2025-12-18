@@ -6,6 +6,8 @@ import { applyZoomTransform } from '@/components/video-editor/videoPlayback/zoom
 import { DEFAULT_FOCUS, SMOOTHING_FACTOR, MIN_DELTA } from '@/components/video-editor/videoPlayback/constants';
 import { clampFocusToStage as clampFocusToStageUtil } from '@/components/video-editor/videoPlayback/focusUtils';
 import { renderAnnotations } from './annotationRenderer';
+import { renderMockupFrame } from './mockupRenderer';
+import type { MockupType } from '@/App';
 
 interface FrameRenderConfig {
   width: number;
@@ -24,6 +26,8 @@ interface FrameRenderConfig {
   annotationRegions?: AnnotationRegion[];
   previewWidth?: number;
   previewHeight?: number;
+  mockupType?: MockupType;
+  browserUrl?: string;
 }
 
 interface AnimationState {
@@ -335,7 +339,7 @@ export class FrameRenderer {
     if (!this.app || !this.videoSprite || !this.maskGraphics || !this.videoContainer) return;
 
     const { width, height } = this.config;
-    const { cropRegion, borderRadius = 0, padding = 0 } = this.config;
+    const { cropRegion, borderRadius = 0, padding = 0, mockupType } = this.config;
     const videoWidth = this.config.videoWidth;
     const videoHeight = this.config.videoHeight;
 
@@ -348,9 +352,14 @@ export class FrameRenderer {
     const croppedVideoWidth = videoWidth * (cropEndX - cropStartX);
     const croppedVideoHeight = videoHeight * (cropEndY - cropStartY);
     
+    // For mockups, video fills the canvas (padding/radius handled by mockup frame)
+    // For non-mockups, apply padding and border radius
+    const effectivePadding = mockupType ? 0 : padding;
+    const effectiveBorderRadius = mockupType ? 0 : borderRadius;
+    
     // Calculate scale to fit in viewport
     // Padding is a percentage (0-100), where 50% ~ 0.8 scale
-    const paddingScale = 1.0 - (padding / 100) * 0.4;
+    const paddingScale = 1.0 - (effectivePadding / 100) * 0.4;
     const viewportWidth = width * paddingScale;
     const viewportHeight = height * paddingScale;
     const scale = Math.min(viewportWidth / croppedVideoWidth, viewportHeight / croppedVideoHeight);
@@ -374,7 +383,7 @@ export class FrameRenderer {
 
     // Update mask
     this.maskGraphics.clear();
-    this.maskGraphics.roundRect(0, 0, croppedDisplayWidth, croppedDisplayHeight, borderRadius);
+    this.maskGraphics.roundRect(0, 0, croppedDisplayWidth, croppedDisplayHeight, effectiveBorderRadius);
     this.maskGraphics.fill({ color: 0xffffff });
 
     // Cache layout info
@@ -482,28 +491,73 @@ export class FrameRenderer {
       console.warn('[FrameRenderer] No background sprite found during compositing!');
     }
 
-    // Draw video layer with shadows on top of background
-    if (this.config.showShadow && this.config.shadowIntensity > 0 && this.shadowCanvas && this.shadowCtx) {
-      const shadowCtx = this.shadowCtx;
-      shadowCtx.clearRect(0, 0, w, h);
-      shadowCtx.save();
-      
-      // Calculate shadow parameters based on intensity (0-1)
-      const intensity = this.config.shadowIntensity;
-      const baseBlur1 = 48 * intensity;
-      const baseBlur2 = 16 * intensity;
-      const baseBlur3 = 8 * intensity;
-      const baseAlpha1 = 0.7 * intensity;
-      const baseAlpha2 = 0.5 * intensity;
-      const baseAlpha3 = 0.3 * intensity;
-      const baseOffset = 12 * intensity;
-      
-      shadowCtx.filter = `drop-shadow(0 ${baseOffset}px ${baseBlur1}px rgba(0,0,0,${baseAlpha1})) drop-shadow(0 ${baseOffset/3}px ${baseBlur2}px rgba(0,0,0,${baseAlpha2})) drop-shadow(0 ${baseOffset/6}px ${baseBlur3}px rgba(0,0,0,${baseAlpha3}))`;
-      shadowCtx.drawImage(videoCanvas, 0, 0, w, h);
-      shadowCtx.restore();
-      ctx.drawImage(this.shadowCanvas, 0, 0, w, h);
+    // Step 2: Handle mockup rendering if enabled
+    if (this.config.mockupType) {
+      // Render mockup frame and get content area
+      const mockupContent = renderMockupFrame({
+        ctx,
+        width: w,
+        height: h,
+        mockupType: this.config.mockupType,
+        browserUrl: this.config.browserUrl,
+        padding: this.config.padding || 0,
+        borderRadius: this.config.borderRadius || 0,
+        shadowIntensity: this.config.shadowIntensity,
+      });
+
+      if (mockupContent) {
+        // Draw video into the mockup content area
+        ctx.save();
+        
+        // Clip to content area with appropriate radius
+        const contentRadius = this.config.mockupType === 'device' 
+          ? Math.max(this.config.borderRadius || 0, Math.round(mockupContent.contentH * 0.05))
+          : 0;
+        ctx.beginPath();
+        ctx.roundRect(
+          mockupContent.contentX,
+          mockupContent.contentY,
+          mockupContent.contentW,
+          mockupContent.contentH,
+          contentRadius
+        );
+        ctx.clip();
+        
+        // Draw the video canvas directly into the content area
+        // The video fills the content area completely
+        ctx.drawImage(
+          videoCanvas, 
+          mockupContent.contentX, 
+          mockupContent.contentY, 
+          mockupContent.contentW, 
+          mockupContent.contentH
+        );
+        ctx.restore();
+      }
     } else {
-      ctx.drawImage(videoCanvas, 0, 0, w, h);
+      // No mockup - draw video layer with shadows on top of background
+      if (this.config.showShadow && this.config.shadowIntensity > 0 && this.shadowCanvas && this.shadowCtx) {
+        const shadowCtx = this.shadowCtx;
+        shadowCtx.clearRect(0, 0, w, h);
+        shadowCtx.save();
+        
+        // Calculate shadow parameters based on intensity (0-1)
+        const intensity = this.config.shadowIntensity;
+        const baseBlur1 = 48 * intensity;
+        const baseBlur2 = 16 * intensity;
+        const baseBlur3 = 8 * intensity;
+        const baseAlpha1 = 0.7 * intensity;
+        const baseAlpha2 = 0.5 * intensity;
+        const baseAlpha3 = 0.3 * intensity;
+        const baseOffset = 12 * intensity;
+        
+        shadowCtx.filter = `drop-shadow(0 ${baseOffset}px ${baseBlur1}px rgba(0,0,0,${baseAlpha1})) drop-shadow(0 ${baseOffset/3}px ${baseBlur2}px rgba(0,0,0,${baseAlpha2})) drop-shadow(0 ${baseOffset/6}px ${baseBlur3}px rgba(0,0,0,${baseAlpha3}))`;
+        shadowCtx.drawImage(videoCanvas, 0, 0, w, h);
+        shadowCtx.restore();
+        ctx.drawImage(this.shadowCanvas, 0, 0, w, h);
+      } else {
+        ctx.drawImage(videoCanvas, 0, 0, w, h);
+      }
     }
   }
 

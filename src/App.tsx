@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import VideoEditor from "./components/video-editor/VideoEditor";
 import GradientBackground from "./components/GradientBackground";
-import { Upload, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import kaptureLogo from "./assets/kapture.svg";
 
 export type MockupType = "device" | "browser" | null;
@@ -11,19 +11,16 @@ const mockupCards = [
     type: null as MockupType,
     title: "No Mockup",
     description: "Clean video, no frame",
-    image: "/kapture.png",
   },
   {
     type: "browser" as MockupType,
     title: "Browser",
     description: "Safari-style window frame",
-    image: "/mockups/Safari • Dark Mode ON.svg",
   },
   {
     type: "device" as MockupType,
     title: "Device",
     description: "iPhone mockup frame",
-    image: "/mockups/iPhone.svg",
   },
 ];
 
@@ -92,12 +89,29 @@ export default function App() {
   return (
     <>
       {/* Mobile blocker */}
-      <div className="md:hidden min-h-screen flex flex-col items-center justify-center p-8 bg-[#111]">
-        <img src={kaptureLogo} alt="Kapture" className="w-16 h-16 mb-6 opacity-80" />
-        <h1 className="text-xl font-medium text-white/90 mb-2">Kapture</h1>
-        <p className="text-white/40 text-sm text-center max-w-[280px]">
-          Kapture is designed for larger screens. Please open on a desktop or tablet for the best experience.
-        </p>
+      <div className="md:hidden min-h-screen flex flex-col items-center justify-center p-8 bg-[#0a0a0a] relative overflow-hidden">
+        {/* Subtle gradient bg */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#34B27B]/5 via-transparent to-transparent" />
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-2xl bg-[#1a1a1c] border border-white/10 flex items-center justify-center mb-6">
+            <img src={kaptureLogo} alt="Kapture" className="w-12 h-12" />
+          </div>
+          
+          <h1 className="text-2xl font-semibold text-white mb-1">Kapture</h1>
+          <p className="text-[#34B27B] text-sm font-medium mb-6">Video Editor</p>
+          
+          <div className="w-16 h-1 rounded-full bg-white/10 mb-6" />
+          
+          <p className="text-white/50 text-sm text-center max-w-[260px] leading-relaxed">
+            This app needs a bigger screen to work properly. Open it on your laptop or desktop.
+          </p>
+          
+          <div className="mt-8 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+            <p className="text-white/30 text-xs">Min width: 768px</p>
+          </div>
+        </div>
       </div>
 
       {/* Desktop content */}
@@ -144,17 +158,9 @@ export default function App() {
               isDragging ? "border-white/30 bg-white/5" : "border-white/10"
             }`}
           >
-            {/* Card Image */}
-            <div className="h-[140px] w-full rounded-xl overflow-hidden bg-[#2a2a2c] flex items-center justify-center border border-white/5">
-              {card.image ? (
-                <img
-                  src={card.image}
-                  alt={card.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Upload className="w-10 h-10 text-white/20" />
-              )}
+            {/* Card Preview */}
+            <div className="h-[140px] w-full rounded-xl overflow-hidden bg-[#0f0f10] flex items-center justify-center border border-white/5">
+              <img src={kaptureLogo} alt="Kapture" className="w-12 h-12 opacity-40" />
             </div>
 
             {/* Card Content */}

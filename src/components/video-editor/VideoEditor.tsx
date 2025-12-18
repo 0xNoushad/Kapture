@@ -15,16 +15,19 @@ import { getAspectRatioValue } from "@/utils/aspectRatioUtils";
 import { getAssetPath } from "@/lib/assetPath";
 import kaptureLogo from "@/assets/kapture.svg";
 import GradientBackground from "@/components/GradientBackground";
+import type { MockupType } from "@/App";
 
 interface VideoEditorProps {
   videoUrl?: string;
   fileName?: string;
   onReset?: () => void;
+  mockupType?: MockupType;
 }
 
-export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset }: VideoEditorProps = {}) {
+export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset, mockupType }: VideoEditorProps = {}) {
   const videoPlaybackRef = useRef<VideoPlaybackRef>(null);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
+  const [browserUrl, setBrowserUrl] = useState("kapture.app");
 
   // Use state hook
   const state = useVideoEditorState(propVideoUrl);
@@ -83,16 +86,76 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) e.preventDefault();
-      if ((e.key === ' ' || e.code === 'Space') && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (isInput) return;
+
+      // Prevent default for Tab
+      if (e.key === 'Tab') e.preventDefault();
+
+      // Space - Play/Pause
+      if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         const playback = videoPlaybackRef.current;
         if (playback?.video) { playback.video.paused ? playback.play().catch(console.error) : playback.pause(); }
       }
+
+      // Z - Add Zoom
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        handlers.handleZoomAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+      }
+
+      // A - Add Annotation
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        handlers.handleAnnotationAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+      }
+
+      // S - Add Speed
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        handlers.handleSpeedAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+      }
+
+      // \ - Add Trim
+      if (e.key === '\\') {
+        e.preventDefault();
+        handlers.handleTrimAdded({ start: currentTime * 1000, end: Math.min(currentTime * 1000 + 2000, duration * 1000) });
+      }
+
+      // Escape - Deselect all
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedZoomId(null);
+        setSelectedTrimId(null);
+        setSelectedSpeedId(null);
+        setSelectedAnnotationId(null);
+      }
+
+      // Delete/Backspace - Delete selected region
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (selectedZoomId) handlers.handleZoomDelete(selectedZoomId);
+        else if (selectedTrimId) handlers.handleTrimDelete(selectedTrimId);
+        else if (selectedSpeedId) handlers.handleSpeedDelete(selectedSpeedId);
+        else if (selectedAnnotationId) handlers.handleAnnotationDelete(selectedAnnotationId);
+      }
+
+      // Arrow keys - Seek
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const video = videoPlaybackRef.current?.video;
+        if (video) video.currentTime = Math.max(0, video.currentTime - (e.shiftKey ? 5 : 1));
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const video = videoPlaybackRef.current?.video;
+        if (video) video.currentTime = Math.min(duration, video.currentTime + (e.shiftKey ? 5 : 1));
+      }
     };
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, []);
+  }, [currentTime, duration, handlers, selectedZoomId, selectedTrimId, selectedSpeedId, selectedAnnotationId, setSelectedZoomId, setSelectedTrimId, setSelectedSpeedId, setSelectedAnnotationId]);
 
   // Cleanup stale selections
   useEffect(() => { if (selectedZoomId && !zoomRegions.some(r => r.id === selectedZoomId)) setSelectedZoomId(null); }, [selectedZoomId, zoomRegions, setSelectedZoomId]);
@@ -144,17 +207,36 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset 
             <Panel defaultSize={70} minSize={40}>
               <div className="w-full h-full flex bg-white/[0.02] rounded-xl border border-white/5 overflow-hidden">
                 <div className="flex-1 flex justify-center items-center p-4">
-                  <div className="relative" style={{ width: 'auto', height: '100%', aspectRatio: getAspectRatioValue(aspectRatio), maxWidth: '100%', margin: '0 auto' }}>
-                    <VideoPlayback
-                      aspectRatio={aspectRatio} ref={videoPlaybackRef} videoPath={videoPath || ''} onDurationChange={setDuration} onTimeUpdate={setCurrentTime}
-                      currentTime={currentTime} onPlayStateChange={setIsPlaying} onError={setError} wallpaper={wallpaper} zoomRegions={zoomRegions}
-                      selectedZoomId={selectedZoomId} onSelectZoom={handlers.handleSelectZoom} onZoomFocusChange={handlers.handleZoomFocusChange} isPlaying={isPlaying}
-                      showShadow={shadowIntensity > 0} shadowIntensity={shadowIntensity} showBlur={showBlur} motionBlurEnabled={motionBlurEnabled}
-                      borderRadius={borderRadius} padding={padding} cropRegion={cropRegion} trimRegions={trimRegions} speedRegions={speedRegions}
-                      annotationRegions={annotationRegions} selectedAnnotationId={selectedAnnotationId} onSelectAnnotation={handlers.handleSelectAnnotation}
-                      onAnnotationPositionChange={handlers.handleAnnotationPositionChange} onAnnotationSizeChange={handlers.handleAnnotationSizeChange}
-                    />
-                  </div>
+                  {mockupType ? (
+                    <div className="relative" style={{ width: 'auto', height: '100%', aspectRatio: mockupType === 'device' ? '9/19.5' : '16/10', maxWidth: '100%', margin: '0 auto' }}>
+                      <VideoPlayback
+                        aspectRatio={mockupType === 'device' ? '9:16' : aspectRatio} ref={videoPlaybackRef} videoPath={videoPath || ''} onDurationChange={setDuration} onTimeUpdate={setCurrentTime}
+                        currentTime={currentTime} onPlayStateChange={setIsPlaying} onError={setError} 
+                        wallpaper={wallpaper} zoomRegions={zoomRegions}
+                        selectedZoomId={selectedZoomId} onSelectZoom={handlers.handleSelectZoom} onZoomFocusChange={handlers.handleZoomFocusChange} isPlaying={isPlaying}
+                        showShadow={shadowIntensity > 0} shadowIntensity={shadowIntensity} showBlur={showBlur} motionBlurEnabled={motionBlurEnabled}
+                        borderRadius={borderRadius} padding={padding} 
+                        cropRegion={cropRegion} trimRegions={trimRegions} speedRegions={speedRegions}
+                        annotationRegions={annotationRegions} selectedAnnotationId={selectedAnnotationId} onSelectAnnotation={handlers.handleSelectAnnotation}
+                        onAnnotationPositionChange={handlers.handleAnnotationPositionChange} onAnnotationSizeChange={handlers.handleAnnotationSizeChange}
+                        mockupType={mockupType} browserUrl={browserUrl} onBrowserUrlChange={setBrowserUrl}
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative" style={{ width: 'auto', height: '100%', aspectRatio: getAspectRatioValue(aspectRatio), maxWidth: '100%', margin: '0 auto' }}>
+                      <VideoPlayback
+                        aspectRatio={aspectRatio} ref={videoPlaybackRef} videoPath={videoPath || ''} onDurationChange={setDuration} onTimeUpdate={setCurrentTime}
+                        currentTime={currentTime} onPlayStateChange={setIsPlaying} onError={setError} 
+                        wallpaper={wallpaper} zoomRegions={zoomRegions}
+                        selectedZoomId={selectedZoomId} onSelectZoom={handlers.handleSelectZoom} onZoomFocusChange={handlers.handleZoomFocusChange} isPlaying={isPlaying}
+                        showShadow={shadowIntensity > 0} shadowIntensity={shadowIntensity} showBlur={showBlur} motionBlurEnabled={motionBlurEnabled}
+                        borderRadius={borderRadius} padding={padding} 
+                        cropRegion={cropRegion} trimRegions={trimRegions} speedRegions={speedRegions}
+                        annotationRegions={annotationRegions} selectedAnnotationId={selectedAnnotationId} onSelectAnnotation={handlers.handleSelectAnnotation}
+                        onAnnotationPositionChange={handlers.handleAnnotationPositionChange} onAnnotationSizeChange={handlers.handleAnnotationSizeChange}
+                      />
+                    </div>
+                  )}
                 </div>
                 <TooltipProvider delayDuration={0}>
                   <div className="flex flex-col items-center py-4 px-2 gap-2 border-l border-white/5">
@@ -176,7 +258,7 @@ export default function VideoEditor({ videoUrl: propVideoUrl, fileName, onReset 
                   trimRegions={trimRegions} onTrimAdded={handlers.handleTrimAdded} onTrimSpanChange={handlers.handleTrimSpanChange} onTrimDelete={handlers.handleTrimDelete} selectedTrimId={selectedTrimId} onSelectTrim={handlers.handleSelectTrim}
                   annotationRegions={annotationRegions} onAnnotationAdded={handlers.handleAnnotationAdded} onAnnotationSpanChange={handlers.handleAnnotationSpanChange} onAnnotationDelete={handlers.handleAnnotationDelete} selectedAnnotationId={selectedAnnotationId} onSelectAnnotation={handlers.handleSelectAnnotation}
                   speedRegions={speedRegions} onSpeedAdded={handlers.handleSpeedAdded} onSpeedSpanChange={handlers.handleSpeedSpanChange} onSpeedDelete={handlers.handleSpeedDelete} selectedSpeedId={selectedSpeedId} onSelectSpeed={handlers.handleSelectSpeed}
-                  aspectRatio={aspectRatio} onAspectRatioChange={setAspectRatio}
+                  aspectRatio={aspectRatio} onAspectRatioChange={setAspectRatio} hideAspectRatio={!!mockupType}
                 />
               </div>
             </Panel>

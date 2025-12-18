@@ -4,6 +4,7 @@ import { ZOOM_DEPTH_SCALES, type ZoomRegion, type ZoomFocus, type ZoomDepth } fr
 import { DEFAULT_FOCUS, SMOOTHING_FACTOR, MIN_DELTA } from '../constants';
 import { findDominantRegion } from '../zoomRegionUtils';
 import { applyZoomTransform } from '../zoomTransform';
+import type { MockupType } from '@/App';
 
 interface UseZoomAnimationProps {
   pixiReady: boolean;
@@ -22,12 +23,13 @@ interface UseZoomAnimationProps {
   currentTimeRef: React.MutableRefObject<number>;
   motionBlurEnabledRef: React.MutableRefObject<boolean>;
   clampFocusToStage: (focus: ZoomFocus, depth: ZoomDepth) => ZoomFocus;
+  mockupTypeRef?: React.MutableRefObject<MockupType | undefined>;
 }
 
 export function useZoomAnimation({
   pixiReady, videoReady, appRef, videoSpriteRef, videoContainerRef, cameraContainerRef,
   zoomRegionsRef, selectedZoomIdRef, isPlayingRef, animationStateRef, blurFilterRef,
-  stageSizeRef, baseMaskRef, currentTimeRef, motionBlurEnabledRef, clampFocusToStage,
+  stageSizeRef, baseMaskRef, currentTimeRef, motionBlurEnabledRef, clampFocusToStage, mockupTypeRef,
 }: UseZoomAnimationProps): void {
   useEffect(() => {
     if (!pixiReady || !videoReady) return;
@@ -68,6 +70,10 @@ export function useZoomAnimation({
         Math.abs(state.scale - prevScale), Math.abs(state.focusX - prevFocusX), Math.abs(state.focusY - prevFocusY)
       );
 
+      // For mockups, CSS handles the zoom transform, so skip PixiJS transform
+      // But we still calculate animation state above for CSS to use
+      if (mockupTypeRef?.current) return;
+
       const cameraContainer = cameraContainerRef.current;
       if (cameraContainer) {
         applyZoomTransform({
@@ -80,5 +86,5 @@ export function useZoomAnimation({
 
     app.ticker.add(ticker);
     return () => { app?.ticker?.remove(ticker); };
-  }, [pixiReady, videoReady, appRef, videoSpriteRef, videoContainerRef, cameraContainerRef, zoomRegionsRef, selectedZoomIdRef, isPlayingRef, animationStateRef, blurFilterRef, stageSizeRef, baseMaskRef, currentTimeRef, motionBlurEnabledRef, clampFocusToStage]);
+  }, [pixiReady, videoReady, appRef, videoSpriteRef, videoContainerRef, cameraContainerRef, zoomRegionsRef, selectedZoomIdRef, isPlayingRef, animationStateRef, blurFilterRef, stageSizeRef, baseMaskRef, currentTimeRef, motionBlurEnabledRef, clampFocusToStage, mockupTypeRef]);
 }

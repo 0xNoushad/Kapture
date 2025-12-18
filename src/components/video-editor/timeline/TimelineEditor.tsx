@@ -42,6 +42,7 @@ interface TimelineEditorProps {
   onSelectSpeed?: (id: string | null) => void;
   aspectRatio: AspectRatio;
   onAspectRatioChange: (aspectRatio: AspectRatio) => void;
+  hideAspectRatio?: boolean;
 }
 
 export default function TimelineEditor({
@@ -76,6 +77,7 @@ export default function TimelineEditor({
   onAspectRatioChange,
   isPlaying = false,
   onTogglePlayPause,
+  hideAspectRatio = false,
 }: TimelineEditorProps) {
   const totalMs = useMemo(() => Math.max(0, Math.round(videoDuration * 1000)), [videoDuration]);
   const currentTimeMs = useMemo(() => Math.round(currentTime * 1000), [currentTime]);
@@ -274,6 +276,7 @@ export default function TimelineEditor({
         totalMs={totalMs}
         range={range}
         onRangeChange={setRange}
+        hideAspectRatio={hideAspectRatio}
       />
       <div className="flex-1 overflow-hidden bg-[transparent] relative px-4" onClick={() => setSelectedKeyframeId(null)}>
         <TimelineWrapper

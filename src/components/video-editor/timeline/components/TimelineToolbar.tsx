@@ -24,6 +24,7 @@ interface TimelineToolbarProps {
   totalMs: number;
   range: { start: number; end: number };
   onRangeChange: (range: { start: number; end: number }) => void;
+  hideAspectRatio?: boolean;
 }
 
 export function TimelineToolbar({
@@ -41,6 +42,7 @@ export function TimelineToolbar({
   totalMs,
   range,
   onRangeChange,
+  hideAspectRatio = false,
 }: TimelineToolbarProps) {
   const visibleRange = range.end - range.start;
 
@@ -60,24 +62,26 @@ export function TimelineToolbar({
         <Button onClick={onAddSpeed} variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-[#f97316] hover:bg-[#f97316]/10 transition-all" title="Add Speed (S)">
           <Gauge className="w-4 h-4" />
         </Button>
-        <div className="ml-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-white/50 hover:text-slate-200 hover:bg-white/10 transition-all gap-1">
-                <span className="font-medium">{getAspectRatioLabel(aspectRatio)}</span>
-                <ChevronDown className="w-3 h-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="bg-[#1a1a1a] border-white/10">
-              {(['16:9', '9:16', '1:1', '4:3', '4:5'] as AspectRatio[]).map((ratio) => (
-                <DropdownMenuItem key={ratio} onClick={() => onAspectRatioChange(ratio)} className="text-white/70 hover:text-white hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3">
-                  <span>{getAspectRatioLabel(ratio)}</span>
-                  {aspectRatio === ratio && <Check className="w-3 h-3 text-[#34B27B]" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        {!hideAspectRatio && (
+          <div className="ml-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-white/50 hover:text-slate-200 hover:bg-white/10 transition-all gap-1">
+                  <span className="font-medium">{getAspectRatioLabel(aspectRatio)}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-[#1a1a1a] border-white/10">
+                {(['16:9', '9:16', '1:1', '4:3', '4:5'] as AspectRatio[]).map((ratio) => (
+                  <DropdownMenuItem key={ratio} onClick={() => onAspectRatioChange(ratio)} className="text-white/70 hover:text-white hover:bg-white/10 cursor-pointer flex items-center justify-between gap-3">
+                    <span>{getAspectRatioLabel(ratio)}</span>
+                    {aspectRatio === ratio && <Check className="w-3 h-3 text-[#34B27B]" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
       
       {/* Center section - Playback Controls */}

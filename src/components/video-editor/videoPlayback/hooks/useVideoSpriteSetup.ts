@@ -21,7 +21,7 @@ interface UseVideoSpriteSetupProps {
   currentTimeRef: React.MutableRefObject<number>;
   timeUpdateAnimationRef: React.MutableRefObject<number | null>;
   trimRegionsRef: React.MutableRefObject<TrimRegion[]>;
-  layoutVideoContent: () => void;
+  layoutVideoContentRef: React.MutableRefObject<() => void>;
   onPlayStateChange: (playing: boolean) => void;
   onTimeUpdate: (time: number) => void;
 }
@@ -30,7 +30,7 @@ export function useVideoSpriteSetup({
   pixiReady, videoReady, videoRef, appRef, videoContainerRef, videoSpriteRef,
   maskGraphicsRef, blurFilterRef, animationStateRef, isSeekingRef, isPlayingRef,
   allowPlaybackRef, currentTimeRef, timeUpdateAnimationRef, trimRegionsRef,
-  layoutVideoContent, onPlayStateChange, onTimeUpdate,
+  layoutVideoContentRef, onPlayStateChange, onTimeUpdate,
 }: UseVideoSpriteSetupProps): void {
   useEffect(() => {
     if (!pixiReady || !videoReady) return;
@@ -58,11 +58,11 @@ export function useVideoSpriteSetup({
     const blurFilter = new PixiBlurFilter();
     blurFilter.quality = 3;
     blurFilter.resolution = app.renderer.resolution;
-    blurFilter.blur = 0;
+    blurFilter.strength = 0;
     videoContainer.filters = [blurFilter];
     blurFilterRef.current = blurFilter;
 
-    layoutVideoContent();
+    layoutVideoContentRef.current();
     video.pause();
 
     const { handlePlay, handlePause, handleSeeked, handleSeeking } = createVideoEventHandlers({
@@ -96,5 +96,5 @@ export function useVideoSpriteSetup({
       videoTexture.destroy(true);
       videoSpriteRef.current = null;
     };
-  }, [pixiReady, videoReady, videoRef, appRef, videoContainerRef, videoSpriteRef, maskGraphicsRef, blurFilterRef, animationStateRef, isSeekingRef, isPlayingRef, allowPlaybackRef, currentTimeRef, timeUpdateAnimationRef, trimRegionsRef, layoutVideoContent, onPlayStateChange, onTimeUpdate]);
+  }, [pixiReady, videoReady, videoRef, appRef, videoContainerRef, videoSpriteRef, maskGraphicsRef, blurFilterRef, animationStateRef, isSeekingRef, isPlayingRef, allowPlaybackRef, currentTimeRef, timeUpdateAnimationRef, trimRegionsRef, layoutVideoContentRef, onPlayStateChange, onTimeUpdate]);
 }

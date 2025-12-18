@@ -57,7 +57,8 @@ export function updateOverlayIndicator(params: OverlayUpdateParams) {
     ? (stageHeight - indicatorHeight) / 2
     : Math.max(0, Math.min(stageHeight - indicatorHeight, rawTop));
 
-  indicatorEl.style.display = 'block';
+  // Hide indicator during playback - only show when paused for editing
+  indicatorEl.style.display = isPlaying ? 'none' : 'block';
   indicatorEl.style.width = `${indicatorWidth}px`;
   indicatorEl.style.height = `${indicatorHeight}px`;
   indicatorEl.style.left = `${adjustedLeft}px`;

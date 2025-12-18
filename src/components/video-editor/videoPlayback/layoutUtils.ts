@@ -56,16 +56,14 @@ export function layoutVideoContent(params: LayoutParams): LayoutResult | null {
   const cropEndY = cropStartY + croppedVideoHeight;
   
   // Calculate scale to fit the cropped area in the viewport
-  // Padding is a percentage (0-100), where 50 matches the original VIEWPORT_SCALE of 0.8
-  const paddingScale = 1.0 - (padding / 100) * 0.4;
+  // Padding 0 = video fills container (cover), padding 100 = video at 60% size
+  const paddingScale = padding > 0 ? (1.0 - (padding / 100) * 0.4) : 1.0;
   const maxDisplayWidth = width * paddingScale;
   const maxDisplayHeight = height * paddingScale;
 
-  const scale = Math.min(
-    maxDisplayWidth / croppedVideoWidth,
-    maxDisplayHeight / croppedVideoHeight,
-    1
-  );
+  // Use "cover" behavior - scale video to fill the padded display area
+  // The mask will clip any overflow, ensuring video fills the frame for any aspect ratio
+  const scale = Math.max(maxDisplayWidth / croppedVideoWidth, maxDisplayHeight / croppedVideoHeight);
 
   videoSprite.scale.set(scale);
   
@@ -77,27 +75,26 @@ export function layoutVideoContent(params: LayoutParams): LayoutResult | null {
   const croppedDisplayWidth = croppedVideoWidth * scale;
   const croppedDisplayHeight = croppedVideoHeight * scale;
 
-  // Center the cropped region in the container
-  const centerOffsetX = (width - croppedDisplayWidth) / 2;
-  const centerOffsetY = (height - croppedDisplayHeight) / 2;
+  // The visible area is the padded display area, centered in the container
+  const visibleWidth = maxDisplayWidth;
+  const visibleHeight = maxDisplayHeight;
+  const visibleX = (width - visibleWidth) / 2;
+  const visibleY = (height - visibleHeight) / 2;
+
+  // Center the video within the visible area
+  // The video may be larger than the visible area (cover behavior), so we center it
+  const videoOffsetX = visibleX + (visibleWidth - croppedDisplayWidth) / 2;
+  const videoOffsetY = visibleY + (visibleHeight - croppedDisplayHeight) / 2;
   
-  // Position the full video sprite so that when we apply the mask,
-  // the cropped region appears centered
-  // The crop starts at (crop.x * videoWidth, crop.y * videoHeight) in video coordinates
-  // In display coordinates, that's (crop.x * fullVideoDisplayWidth, crop.y * fullVideoDisplayHeight)
-  // We want that point to be at centerOffsetX, centerOffsetY
-  const spriteX = centerOffsetX - (crop.x * fullVideoDisplayWidth);
-  const spriteY = centerOffsetY - (crop.y * fullVideoDisplayHeight);
+  // Position the full video sprite accounting for crop offset
+  const spriteX = videoOffsetX - (crop.x * fullVideoDisplayWidth);
+  const spriteY = videoOffsetY - (crop.y * fullVideoDisplayHeight);
   
   videoSprite.position.set(spriteX, spriteY);
 
-  // Create a mask that only shows the cropped region (centered in container)
-  const maskX = centerOffsetX;
-  const maskY = centerOffsetY;
-  
-  // Apply border radius
+  // Mask clips to the visible padded area (not the video size)
   maskGraphics.clear();
-  maskGraphics.roundRect(maskX, maskY, croppedDisplayWidth, croppedDisplayHeight, borderRadius);
+  maskGraphics.roundRect(visibleX, visibleY, visibleWidth, visibleHeight, borderRadius);
   maskGraphics.fill({ color: 0xffffff });
 
   return {
@@ -105,7 +102,7 @@ export function layoutVideoContent(params: LayoutParams): LayoutResult | null {
     videoSize: { width: croppedVideoWidth, height: croppedVideoHeight },
     baseScale: scale,
     baseOffset: { x: spriteX, y: spriteY },
-    maskRect: { x: maskX, y: maskY, width: croppedDisplayWidth, height: croppedDisplayHeight },
+    maskRect: { x: visibleX, y: visibleY, width: visibleWidth, height: visibleHeight },
     cropBounds: { startX: cropStartX, endX: cropEndX, startY: cropStartY, endY: cropEndY },
   };
 }
